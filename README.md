@@ -28,7 +28,7 @@ or say "send thanksgiving texts to my friends".
 1. **Finds people.** It reads `~/Library/Messages/chat.db` and your Contacts, and keeps one-on-one threads where both of you wrote recently. Businesses, verification codes and group chats drop out.
 2. **Widens the net (optional).** If Gmail or Google Calendar is connected to Claude, it adds people you emailed or met with. It matches them to phone numbers through Contacts.
 3. **Drafts.** Each person gets your template plus one specific line from your recent messages with them. If the recent topic is sensitive (health, grief, money), it uses the plain template. It never makes up details.
-4. **Review.** Everything lands in a `review.csv`, where you approve, skip or edit each row. Family, people you've already wished a happy holiday, and purely transactional threads start out as skips.
+4. **Review.** Everything lands in a `review.csv`, where you approve, skip or edit each row. If Google Drive is connected to Claude, it can put the sheet in Google Sheets instead, then pull your edits back before sending. Family, people you've already wished a happy holiday, and purely transactional threads start out as skips.
 5. **Sends** through the Messages app, but only after a dry run, a test message to yourself, and your explicit yes. It waits a few seconds between texts and logs every one, so a rerun never double-texts anyone.
 
 ## Requirements

@@ -92,6 +92,18 @@ Open it for the user (`open review.csv` opens it in Numbers). In chat, summarize
 
 Reread the CSV after their edits. Don't assume it is unchanged.
 
+### Optional: review in Google Sheets
+
+A Sheet is easier to review on a phone or with a partner. Offer it only if a Google Drive connector is available, and say first that it copies names, numbers and drafts into that Google account. Default to the local CSV.
+
+1. Upload with Drive `create_file`: `contentMimeType: text/csv`, title like `<Occasion> <year> - drafts to review`. Drive converts it to a Sheet. If the connector can't read the file by path from the working folder, copy it into a scratch folder first, then delete the copy afterward.
+2. Format with the Sheets `update_spreadsheet` tool: freeze row 1, bold the header, add a `y / n / ?` dropdown on `send`, add a filter, widen and wrap `message`.
+3. Read it back to confirm rows landed (`get_values` on `A1:F3`). Give the user the link and tell them which account owns it.
+4. When they're done editing, pull the Sheet back with `get_values` and overwrite `review.csv` with it. `send.py` only ever reads the local CSV, so the Sheet can't trigger a send.
+5. After sending, offer to trash the Sheet, or keep it as the relationship list (see Step 7).
+
+The same works for `master_list.csv`, with a checkbox column for picking people.
+
 ## Step 6: Test, then send
 
 1. Do a dry run and show the output: `python3 scripts/send.py ~/gratitude-texts/$(date +%Y)/review.csv`
