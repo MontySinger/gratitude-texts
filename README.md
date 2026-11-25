@@ -1,6 +1,8 @@
 # gratitude-texts
 
-A Claude Code skill for holiday check-ins. It finds the people you actually talk to, drafts a short message for each one with a personal line from your last conversation, shows you the whole list, and sends only what you approve. Everything runs on your Mac, and your data is only ever read, never changed.
+A Claude Code skill for holiday check-ins. It builds one list of everyone you interacted with over the past year, ranks them by how close you are, and drafts a short personal message for your top ~25. You go down the list and reach out yourself.
+
+**It never sends anything.** No texts, no emails. It reads your data and hands you a list.
 
 Thanksgiving by default. Works for any occasion.
 
@@ -21,25 +23,43 @@ In Claude Code, type:
 /gratitude-texts
 ```
 
-or say "send thanksgiving texts to my friends".
+or say "who should I reach out to for Thanksgiving?"
 
-## What it does
+It starts by explaining exactly what it will read and do, and waits for your yes.
 
-1. **Finds people.** It reads `~/Library/Messages/chat.db` and your Contacts, and keeps one-on-one threads where both of you wrote recently. Businesses, verification codes and group chats drop out.
-2. **Widens the net (optional).** If Gmail or Google Calendar is connected to Claude, it adds people you emailed or met with. It matches them to phone numbers through Contacts.
-3. **Drafts.** Each person gets your template plus one specific line from your recent messages with them. If the recent topic is sensitive (health, grief, money), it uses the plain template. It never makes up details.
-4. **Review.** Everything lands in a `review.csv`, where you approve, skip or edit each row. If Google Drive is connected to Claude, it can put the sheet in Google Sheets instead, then pull your edits back before sending. Family, people you've already wished a happy holiday, and purely transactional threads start out as skips.
-5. **Sends** through the Messages app, but only after a dry run, a test message to yourself, and your explicit yes. It waits a few seconds between texts and logs every one, so a rerun never double-texts anyone.
+## What you get
+
+One file, `~/gratitude-texts/<year>/people.csv`:
+
+| column | what it is |
+|---|---|
+| `done` | blank, for you to tick as you reach out |
+| `priority` | high / medium / low |
+| `name`, `phone`, `email` | from Messages and Contacts |
+| `sources` | text, email, calendar |
+| `texts` | messages exchanged in the past year |
+| `last_contact` | most recent text or meeting |
+| `draft` | a short message, for high-priority people only |
+| `notes` | where the draft came from, or why someone was ranked low (business, family, check first) |
+
+If Google Drive is connected to Claude, it can also put the list in Google Sheets, but only if you ask it to.
+
+## How it works
+
+1. Reads `~/Library/Messages/chat.db` and your Contacts read-only. It keeps one-on-one threads where both of you wrote in the past year.
+2. If Gmail or Google Calendar is connected, it adds people you emailed or met with. It reads only addresses and dates, not email bodies, and matches them to phone numbers through Contacts.
+3. Ranks everyone. High means you text a lot and recently. Medium means a real back-and-forth, a meeting, or more than one channel. Low is everyone else.
+4. For high-priority people only, it writes one line from your recent messages ("Hope the Denver move settled in"). Sensitive topics like health, grief or money get no personal line. It never makes up details.
 
 ## Requirements
 
-- macOS, signed in to Messages
+- macOS, with Messages signed in
 - Python 3 (comes with the Xcode command line tools)
-- To text non-iPhone numbers: on your iPhone, turn on Settings > Messages > Text Message Forwarding
+- Claude Code
 
 ## Privacy
 
-The scripts read your Messages and Contacts databases without changing them, and write their output only to `~/gratitude-texts/`. Short excerpts of recent messages pass through Claude so it can write the personal lines. Nothing sends without your approval.
+The scripts open your Messages and Contacts databases read-only and write only to `~/gratitude-texts/`. Recent messages pass through Claude only for the people it drafts for. Nothing goes to Google Sheets unless you say so.
 
 ## License
 

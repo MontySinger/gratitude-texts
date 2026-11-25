@@ -4,13 +4,13 @@
 Reads ~/Library/Messages/chat.db and your macOS Contacts databases, read-only.
 Nothing leaves your machine. Writes people.json to --out.
 
-Keeps only 1:1 threads where both sides wrote (default: 3+ messages each way)
-inside the lookback window. Group chats, verification codes, and businesses
-that never get replies fall out on their own.
+Keeps every 1:1 thread where both sides wrote inside the lookback window
+(default: the past year, at least 1 message each way). Group chats,
+verification codes, and businesses that never get replies fall out on their own.
 
 Usage:
   python3 find_people.py --out ~/gratitude-texts/$(date +%Y)
-  python3 find_people.py --out DIR --days 365 --min-each-way 5 --limit 100
+  python3 find_people.py --out DIR --days 730 --min-each-way 3 --limit 200
 """
 import argparse
 import glob
@@ -115,9 +115,9 @@ def load_contacts():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--days", type=int, default=730, help="lookback window")
-    ap.add_argument("--min-each-way", type=int, default=3)
-    ap.add_argument("--limit", type=int, default=150)
+    ap.add_argument("--days", type=int, default=365, help="lookback window")
+    ap.add_argument("--min-each-way", type=int, default=1)
+    ap.add_argument("--limit", type=int, default=0, help="0 = everyone")
     ap.add_argument("--recent", type=int, default=15, help="recent messages kept per person")
     args = ap.parse_args()
 
@@ -191,7 +191,8 @@ def main():
             "recent": p["msgs"][-args.recent:],
         })
     out.sort(key=lambda x: -x["score"])
-    out = out[:args.limit]
+    if args.limit:
+        out = out[:args.limit]
 
     os.makedirs(os.path.expanduser(args.out), exist_ok=True)
     path = os.path.join(os.path.expanduser(args.out), "people.json")

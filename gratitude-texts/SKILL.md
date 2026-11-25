@@ -1,118 +1,108 @@
 ---
 name: gratitude-texts
-description: Find the people you actually talk to in your iMessage history and send each one a short holiday message, with a personal line drawn from your last real conversation. Thanksgiving by default; works for any occasion. Builds a review sheet first, so nothing sends until you approve it. Mac only. Triggers - "gratitude texts", "thanksgiving texts", "send happy thanksgiving to my friends", "holiday check-in messages", "who should I text this holiday", "touch base with everyone".
+description: Build one list of everyone you interacted with over the past year, from iMessage, plus email and calendar when connected, ranked by how close you are, with a short drafted message for your highest-priority people. Made for holiday check-ins (Thanksgiving by default) but works any time. Never sends anything; you reach out yourself. Mac only. Triggers - "gratitude texts", "thanksgiving texts", "who should I reach out to", "list everyone I talked to this year", "holiday check-in list", "touch base with everyone".
 user-invocable: true
 ---
 
 # Gratitude Texts
 
-Holidays are a good excuse to reach out. This skill reads your local iMessage history, finds the people you have real two-way conversations with, and drafts a short message for each one: your template plus one specific line from your last conversation. You review the full list, then it sends through the Messages app.
+This skill builds a single list of the people you interacted with over the past year, ranks them, and drafts a short personal message for the top few. You work through the list and reach out yourself.
 
-Three rules hold the whole way through:
+Four rules hold the whole way through:
 
-1. **Nothing sends without the user's explicit yes in chat**, given after they have seen the final list. Approval for the list doesn't cover any later changes to it.
-2. **The data stays local.** The scripts read the databases read-only and write to a folder on the user's machine. Only the recent snippets you use for drafting pass through the model.
-3. **Never make anything up.** A personal line has to come from something actually in the messages. If nothing fits, send the plain template.
+1. **This skill never sends anything.** Don't send messages, emails or invites, and don't write or run any code that does, even if the user asks mid-run. If they want automated sending, tell them it's outside this skill.
+2. **Get approval before reading anything.** Step 0 comes first, every time.
+3. **The data stays local.** The scripts open the databases read-only and write only to `~/gratitude-texts/<year>/`. Message snippets pass through the model only for the few people you draft for. Upload to a cloud service like Google Sheets only if the user opts in.
+4. **Never make anything up.** A personal line has to come from something actually in the messages. If nothing fits, leave it out.
 
-## Requirements
+Scripts are in `scripts/` next to this file. The working folder is `~/gratitude-texts/<year>/`, and it is called `DIR` below.
 
-- macOS with Messages signed in. Texts to non-iPhone numbers need iPhone "Text Message Forwarding" turned on.
-- Full Disk Access for the app Claude Code runs in (System Settings > Privacy & Security > Full Disk Access), so it can read `~/Library/Messages/chat.db` and Contacts. If the user hasn't granted it, `find_people.py` prints these steps. If access is still denied after they grant it, the app almost always needs a full quit (Cmd+Q) and reopen; closing the window isn't enough. Tell them that once rather than retrying in a loop.
-- The first send triggers a macOS prompt that lets the app control Messages. The user has to click Allow themselves.
+## Step 0: Explain, then get approval
 
-Scripts are in `scripts/` next to this file. Set the working folder to `~/gratitude-texts/<year>/`.
+Before running anything, send the user this rundown, adapted to which connectors are available, and wait for a clear yes:
 
-## Step 1: Ask three things, then go
+> **What this does**
+> 1. **Reads your Messages and Contacts on this Mac**, read-only, to find everyone you've had a two-way text thread with in the past year. Group chats, verification codes and businesses that never reply are left out.
+> 2. **Optionally checks email and calendar** if Gmail or Google Calendar is connected: people you emailed and people you met with. (Say which accounts are connected. Each connector covers only its own account.)
+> 3. **Builds one list**, `people.csv`, ranked into high, medium and low priority by how much you talk and how recently.
+> 4. **Drafts a short message for your top ~25 people only**, using a few recent messages with each of them for context. Everyone else gets a row with no draft.
+> 5. **Optionally copies the list to Google Sheets** if you want it on your phone. That puts names and numbers in that Google account.
+>
+> **What it never does:** send any message or email, change your data, or upload anything without your OK.
+>
+> **What it needs:** Full Disk Access for the app running Claude Code, so it can read Messages and Contacts.
+>
+> Settings: occasion **Thanksgiving**, lookback **1 year**, drafts for the **top 25**. Your template is `Hey {first}, happy Thanksgiving! Grateful to have you in my life. {personal}` Want to change any of these, or exclude anyone, like family or coworkers? Reply **yes** to start.
 
-Ask these in a single message, each with a default the user can accept:
+Keep the user's own template wording if they give one. Don't start Step 1 until they approve. If they decline the email or calendar part, skip it.
 
-- **Occasion**: default Thanksgiving.
-- **Template**: default: `Hey {first}, happy Thanksgiving! Grateful to have you in my life. {personal} Where are you celebrating? Looking forward to catching up soon.` Keep the user's wording if they give their own.
-- **Who to exclude**: for example family (they may want to call them instead), coworkers, or exes. Default: no exclusions, which the review sheet can fix later.
-
-## Step 2: Find people
+## Step 1: Texts
 
 ```bash
 python3 scripts/find_people.py --out ~/gratitude-texts/$(date +%Y)
 ```
 
-Defaults: a 2-year lookback, at least 3 messages each way, and the top 150 people by score. Score favors two-way volume and recency. Tell the user how many people it found. If the count looks too high or too low, rerun with `--days`, `--min-each-way` or `--limit`.
+This covers the past year, everyone with at least one message each way. If it prints a Full Disk Access error, tell the user the steps it prints, once. If access is still denied after they've granted it, the app almost always needs a full quit (Cmd+Q) and reopen. Closing the window isn't enough. Don't retry in a loop.
 
-### Optional: widen the net with email and calendar
+## Step 2: Email and calendar (optional, if approved)
 
-If the user wants everyone from the past year rather than only the people they text most:
+- **Email:** search `in:sent after:<one year ago>` in date slices of 1 to 2 months, because results cap per call and may not paginate. Write every recipient address (to, cc, bcc), one per line, to `DIR/email_sent.txt`.
+- **Calendar:** list the past year's events. Save guests who aren't the user as `[{name, email, last, count}]` to `DIR/calendar.json`.
 
-1. Rerun the finder wider: `--days 365 --min-each-way 1 --limit 5000 --out <dir>/master`.
-2. Email: if a Gmail connector is available, search `in:sent after:<one year ago>` in date slices of 1 to 2 months, because results cap at 50 per call and may not paginate. Write every recipient address (to, cc, bcc), one per line, to `<dir>/master/email_sent.txt`.
-3. Calendar: list the past year's events and save the guests as `[{name, email, last, count}]` to `<dir>/master/calendar.json`.
-4. Merge: `python3 scripts/merge_sources.py --dir <dir>/master --self <the user's own addresses>`. It matches emails to people through Contacts and through names spelled in the address, and drops automated senders.
+Only collect addresses, names and dates. Don't read email bodies.
 
-Each connector only sees its own account. Tell the user which inboxes and calendars were covered and which weren't.
+## Step 3: Build the list
 
-## Step 3: Triage
+```bash
+python3 scripts/build_list.py --dir ~/gratitude-texts/$(date +%Y) --self <the user's own email addresses>
+```
 
-Read `people.json`. Mark a person **skip**, and give a short reason, if they are:
+This writes `people.csv` with the columns `done, priority, name, phone, email, sources, texts, last_contact, draft, notes`. Sorting is high, then medium, then low.
 
-- A business, service, landlord, recruiter, or delivery/automated thread
-- Someone whose recent messages show conflict, a breakup, or a request to stop contact
-- Someone the user asked to exclude
-- Someone you've already swapped holiday wishes or plans with in the last few days
-- Family, by default (most people would rather call them); mark the reason `family` so the user can flip it to `y`
-- A thread that is only logistics or a transaction (selling furniture, club dues, a deal that was declined)
+- **high**: the top `--high` (default 25) by texting score, which rewards two-way volume and recency
+- **medium**: a real back-and-forth, a meeting, or more than one channel
+- **low**: everyone else
 
-Mark **check** for romantic or dating threads, past conflict, work and client threads where the tone is uncertain, and any open favor that might make the message read as a nudge.
+Then skim the high and medium rows in `people.json` and fix what the score gets wrong. Write the fixes to `DIR/notes.json` as `{"<name or phone or email>": {"priority": "...", "notes": "..."}}`:
 
-For anyone texted in the last ~2 days, write a shorter message by hand: drop "Looking forward to catching up soon" (you just did) and refer to the latest exchange instead.
+- Businesses, landlords, recruiters, deliveries: `low`, with the note `business`.
+- The user's exclusions, and family by default (most people call family): `low`, with a note like `family` so the user can see why.
+- Threads showing conflict, a breakup, or a request to stop contact: `low`, with the note `check first`.
+- Dating, work or client threads where the tone is unclear: keep the priority, with the note `check tone`.
+- Number-only rows: add the name in `notes` if the messages give it ("it's Sam from the climbing gym").
 
-For number-only people (`in_contacts: false`), find their name in the messages if it's there, for example "it's Sam from the climbing gym". If it isn't, mark them **check** and leave `{first}` out of their message.
+Keep every row. The point is one complete list. Notes explain the ranking rather than hiding people.
 
-Leave skips in the sheet, marked `send=n`. Don't drop them silently, so the user can see what was cut.
+## Step 4: Drafts for high priority only
 
-## Step 4: Draft
+For each **high** row without a `check first` note, read that person's `recent` messages in `people.json` and fill the template:
 
-For each person who isn't skipped, write the `{personal}` line from their `recent` messages:
+- `{personal}`: one sentence of about 15 words at most, true and specific, in the user's own casual register with that person. Prefer the last 6 months, and treat older things as past ("hope the marathon went well").
+- Leave `{personal}` out if the recent topic is sensitive: health, grief, money, divorce, job loss, legal trouble. Never repeat private details in a way that reads as surveillance. When unsure, leave it out.
+- For someone texted in the last ~2 days, refer to that exchange instead of "catching up soon".
+- Put a few words on where the line came from in `notes`, like "new job in Denver".
 
-- One short sentence of at most about 15 words, in the user's own casual register (copy how the user texts this person).
-- Refer to something specific and true: "Hope the Denver move settled in." or "Still thinking about that ramen place."
-- Prefer things from the last 6 months. Treat anything older as past ("hope the marathon went well"), not ongoing.
-- **Don't write a personal line** if the recent topic is sensitive: health, grief, money, divorce, job loss, legal trouble. Use the plain template for these people, and the line simply drops out.
-- Never invent details, and don't repeat private things back in a way that reads as surveillance. When unsure, skip the line.
-- Adjust the template where needed: drop "Where are you celebrating?" if the thread already says where.
+Don't draft for medium or low rows. Write the drafts to `DIR/drafts.json` as `{"<name or phone>": {"draft": "...", "notes": "..."}}`, then rerun Step 3's command to merge them in.
 
-## Step 5: Review sheet
+## Step 5: Hand over the list
 
-Write `review.csv` in the working folder with these columns:
+Open it with `open people.csv`, which opens it in Numbers or Excel. In chat, tell the user:
 
-`send,name,handle,last_message,why,message`
+- the total count and the high / medium / low split
+- which sources were covered and which weren't, for example "Gmail: work account only"
+- 5 sample drafts
+- that the `done` column is for them to tick as they reach out, and that nothing was sent
 
-- `send`: `y` for drafted rows, `n` for skips, `?` for check rows
-- `why`: a few words on the source of the personal line, or the reason for a skip
+If they want edits ("drop Alex", "shorten Priya's", "draft for the next 10"), change `drafts.json` or `notes.json` and rebuild. Don't hand-edit the CSV, because the next rebuild would overwrite your edits.
 
-Open it for the user (`open review.csv` opens it in Numbers). In chat, summarize the counts (y / n / ?) and show 5 sample messages. Ask them to change `send` values and edit message text, save the file as CSV, and tell you when they're done. If they would rather you make the edits ("drop Alex, shorten Priya's"), make them in the CSV yourself.
+### Optional: Google Sheets
 
-Reread the CSV after their edits. Don't assume it is unchanged.
+Do this only if the user opts in, and only after reminding them which Google account it goes to.
 
-### Optional: review in Google Sheets
+1. Upload `people.csv` with Drive `create_file`, using `contentMimeType: text/csv` and a title like `<Occasion> <year> - people`. Drive converts it to a Sheet. If the connector can't read files by path from `DIR`, copy the file into a scratch folder first and delete the copy afterward.
+2. Format it with the Sheets `update_spreadsheet` tool: freeze row 1 and the name column, bold the header, add checkboxes to `done`, add a `high / medium / low` dropdown on `priority`, add a filter, and widen and wrap `draft`.
+3. Read back `A1:J3` to confirm the rows landed. Then give the user the link and the owning account.
 
-A Sheet is easier to review on a phone or with a partner. Offer it only if a Google Drive connector is available, and say first that it copies names, numbers and drafts into that Google account. Default to the local CSV.
+## After
 
-1. Upload with Drive `create_file`: `contentMimeType: text/csv`, title like `<Occasion> <year> - drafts to review`. Drive converts it to a Sheet. If the connector can't read the file by path from the working folder, copy it into a scratch folder first, then delete the copy afterward.
-2. Format with the Sheets `update_spreadsheet` tool: freeze row 1, bold the header, add a `y / n / ?` dropdown on `send`, add a filter, widen and wrap `message`.
-3. Read it back to confirm rows landed (`get_values` on `A1:F3`). Give the user the link and tell them which account owns it.
-4. When they're done editing, pull the Sheet back with `get_values` and overwrite `review.csv` with it. `send.py` only ever reads the local CSV, so the Sheet can't trigger a send.
-5. After sending, offer to trash the Sheet, or keep it as the relationship list (see Step 7).
-
-The same works for `master_list.csv`, with a checkbox column for picking people.
-
-## Step 6: Test, then send
-
-1. Do a dry run and show the output: `python3 scripts/send.py ~/gratitude-texts/$(date +%Y)/review.csv`
-2. Offer a test send to the user's own number: `--test-to <their number>`. The macOS automation prompt appears here.
-3. State the exact count ("Ready to send 64 messages") and wait for a clear yes.
-4. Do the real send: `python3 scripts/send.py ~/gratitude-texts/$(date +%Y)/review.csv --send`. It waits 4 to 10 seconds between messages and logs to `sent.log`. Run it in the background for long lists.
-
-Sending is idempotent: on a rerun, anyone already marked OK in `sent.log` is skipped. If sends fail, show the errors. Common causes are no iMessage account or forwarding being off for SMS. Retry only the failed rows, and only after the user agrees.
-
-## Step 7: After
-
-Tell the user how many messages went out and point them to `sent.log`. Suggest they keep `review.csv`, since it doubles as next year's starting list. Replies arrive in Messages as usual. The skill doesn't read or answer them.
+Suggest they keep `DIR`, since next year's run can start from it. The skill doesn't read replies or follow up on its own.
