@@ -1,8 +1,8 @@
 # gratitude-texts
 
-A Claude Code skill for holiday check-ins. It builds one list of everyone you interacted with over the past year, ranks them by how close you are, and drafts a short personal message for your top ~25. You go down the list and reach out yourself.
+A Claude Code skill for holiday check-ins. It builds one Google Sheet of everyone you interacted with over the past year, ranks them by how close you are, and drafts a short personal message for your top ~25. You go down the list and reach out yourself.
 
-**It never sends anything.** No texts, no emails. It reads your data and hands you a list.
+**It never sends anything.** No texts, no emails. It reads your data and hands you a Sheet.
 
 Thanksgiving by default. Works for any occasion.
 
@@ -29,11 +29,11 @@ It starts by explaining exactly what it will read and do, and waits for your yes
 
 ## What you get
 
-One file, `~/gratitude-texts/<year>/people.csv`:
+A private Google Sheet in your account, with a local copy at `~/gratitude-texts/<year>/people.csv`:
 
 | column | what it is |
 |---|---|
-| `done` | blank, for you to tick as you reach out |
+| `done` | a checkbox to tick as you reach out |
 | `priority` | high / medium / low |
 | `name`, `phone`, `email` | from Messages and Contacts |
 | `sources` | text, email, calendar |
@@ -42,7 +42,7 @@ One file, `~/gratitude-texts/<year>/people.csv`:
 | `draft` | a short message, for high-priority people only |
 | `notes` | where the draft came from, or why someone was ranked low (business, family, check first) |
 
-If Google Drive is connected to Claude, it can also put the list in Google Sheets, but only if you ask it to.
+It's sorted high to low, with a filter and a priority dropdown. Without a Google Drive connector, you get just the CSV.
 
 ## How it works
 
@@ -56,10 +56,11 @@ If Google Drive is connected to Claude, it can also put the list in Google Sheet
 - macOS, with Messages signed in
 - Python 3 (comes with the Xcode command line tools)
 - Claude Code
+- The Google Drive connector in Claude, for the Sheet
 
 ## Privacy
 
-The scripts open your Messages and Contacts databases read-only and write only to `~/gratitude-texts/`. Recent messages pass through Claude only for the people it drafts for. Nothing goes to Google Sheets unless you say so.
+The scripts open your Messages and Contacts databases read-only and write only to `~/gratitude-texts/`. Recent messages pass through Claude only for the people it drafts for. The list goes to the Google account you approve at the start, and nowhere else.
 
 ## License
 
