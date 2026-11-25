@@ -7,7 +7,7 @@ Thanksgiving by default. Works for any occasion.
 ## Install
 
 ```bash
-git clone https://github.com/MSizzle/gratitude-texts.git ~/gratitude-texts-skill
+git clone https://github.com/MontySinger/gratitude-texts.git ~/gratitude-texts-skill
 ln -s ~/gratitude-texts-skill/gratitude-texts ~/.claude/skills/gratitude-texts
 ```
 
